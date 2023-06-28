@@ -23,6 +23,8 @@
 
 #include "inc/MarlinConfig.h"
 
+#include "../board/startup.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,3 +86,15 @@ bool pin_is_protected(const pin_t pin);
 #endif
 
 extern const char M112_KILL_STR[];
+
+#ifdef __cplusplus
+extern "C"{
+#endif
+
+
+void setup();
+void loop(); 
+
+#ifdef __cplusplus
+} // extern "C"
+#endif

@@ -60,3 +60,5 @@
 #ifndef __MARLIN_DEPS__
   #include HAL_PATH(.., inc/Conditionals_adv.h)
 #endif
+
+#include "../board/startup.h"

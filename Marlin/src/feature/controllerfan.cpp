@@ -91,21 +91,8 @@ void ControllerFan::update() {
         fan_kick_end = 0;
     #endif
 
-    #if ENABLED(FAN_SOFT_PWM)
-      thermalManager.soft_pwm_controller_speed = speed;
-    #else
-      if (PWM_PIN(CONTROLLER_FAN_PIN))
-        hal.set_pwm_duty(pin_t(CONTROLLER_FAN_PIN), speed);
-      else
-        WRITE(CONTROLLER_FAN_PIN, speed > 0);
-
-      #ifdef CONTROLLER_FAN2_PIN
-        if (PWM_PIN(CONTROLLER_FAN2_PIN))
-          hal.set_pwm_duty(pin_t(CONTROLLER_FAN2_PIN), speed);
-        else
-          WRITE(CONTROLLER_FAN2_PIN, speed > 0);
-      #endif
-    #endif
+		fan_pwm_set_ratio(0, thermalManager.fan_speed[0]);
+	  fan_pwm_set_ratio(2, speed);
   }
 }
 

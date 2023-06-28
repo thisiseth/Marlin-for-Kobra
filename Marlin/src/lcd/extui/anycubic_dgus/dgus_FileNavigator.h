@@ -21,39 +21,41 @@
  */
 #pragma once
 
-//
-// Prefix header for all Marlin sources
-//
+/**
+ * lcd/extui/lib/FileNavigator.h
+ *
+ * Extensible_UI implementation for Anycubic Chiron
+ * Written By Nick Wells, 2020 [https://github.com/SwiftNick]
+ *  (not affiliated with Anycubic, Ltd.)
+ */
 
-#include "MarlinConfigPre.h"
+#include "dgus_tft_defs.h"
+#include "../../ui_api.h"
 
-#ifndef __MARLIN_DEPS__
-  #include "../HAL/HAL.h"
-#endif
+using namespace ExtUI;
 
-#include "../pins/pins.h"
+namespace Anycubic {
+  class FileNavigator {
+    public:
+      FileNavigator();
 
-#ifndef __MARLIN_DEPS__
-  #include HAL_PATH(.., timers.h)
-  //#include HAL_PATH(.., spi_pins.h)
-#endif
+      static FileList  filelist;
+      
+      void   reset();
+      void   getFiles(uint16_t);
+      void   upDIR();
+      void   changeDIR(char *);
+      void   sendFile();
+      void   refresh();
+      char * getCurrentFolderName();
+      uint16_t getFileNum();
 
-#include "Conditionals_post.h"
-
-#ifndef __MARLIN_DEPS__
-
-  #include HAL_PATH(.., inc/Conditionals_post.h)
-
-  #include "../core/types.h"  // Ahead of sanity-checks
-
-  #include "SanityCheck.h"
-  #include HAL_PATH(.., inc/SanityCheck.h)
-
-  // Include all core headers
-  #include "../core/language.h"
-  #include "../core/utility.h"
-  #include "../core/serial.h"
-
-#endif
-
-#include "../core/multi_language.h"
+    private:
+      
+      static char      currentfoldername[MAX_PATH_LEN];
+      static uint16_t  lastindex;
+      static uint8_t   folderdepth;
+      static uint16_t  currentindex;
+  };
+  extern FileNavigator filenavigator;
+}

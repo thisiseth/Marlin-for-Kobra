@@ -106,6 +106,10 @@
 Probe probe;
 
 xyz_pos_t Probe::offset; // Initialized by settings.load()
+int8_t Probe::status = 0;
+
+xyz_pos_t Probe::default_probe_xyz_offset = NOZZLE_TO_PROBE_OFFSET;
+xy_pos_t Probe::default_probe_xy_offset = { default_probe_xyz_offset.x,default_probe_xyz_offset.y };
 
 #if HAS_PROBE_XY_OFFSET
   const xy_pos_t &Probe::offset_xy = Probe::offset;
@@ -478,8 +482,12 @@ FORCE_INLINE void probe_specific_action(const bool deploy) {
     DEBUG_EOL();
 
     if (!early) {
+			ui.probe_preheating_start();
+			
       TERN_(WAIT_FOR_NOZZLE_HEAT, if (hotend_temp > thermalManager.wholeDegHotend(0) + (TEMP_WINDOW)) thermalManager.wait_for_hotend(0));
       TERN_(WAIT_FOR_BED_HEAT,    if (bed_temp    > thermalManager.wholeDegBed() + (TEMP_BED_WINDOW)) thermalManager.wait_for_bed_heating());
+			
+			ui.probe_preheating_stop();
     }
   }
 
@@ -585,6 +593,13 @@ bool Probe::set_deployed(const bool deploy) {
 bool Probe::probe_down_to_z(const_float_t z, const_feedRate_t fr_mm_s) {
   DEBUG_SECTION(log_probe, "Probe::probe_down_to_z", DEBUGGING(LEVELING));
 
+#ifdef NOZZLE_AS_PROBE
+    OUT_WRITE(AUTO_LEVEL_TX_PIN, LOW);
+    delay(300);
+    OUT_WRITE(AUTO_LEVEL_TX_PIN, HIGH);
+    delay(100);
+#endif
+	
   #if BOTH(HAS_HEATED_BED, WAIT_FOR_BED_HEATER)
     thermalManager.wait_for_bed_heating();
   #endif
@@ -917,7 +932,8 @@ float Probe::probe_at_point(const_float_t rx, const_float_t ry, const ProbePtRai
   if (isnan(measured_z)) {
     stow();
     LCD_MESSAGE(MSG_LCD_PROBING_FAILED);
-    #if DISABLED(G29_RETRY_AND_RECOVER)
+    #if DISABLED(G29_RETRY_AND_RECOVER)      
+		  status = -1;
       SERIAL_ERROR_MSG(STR_ERR_PROBING_FAILED);
     #endif
   }

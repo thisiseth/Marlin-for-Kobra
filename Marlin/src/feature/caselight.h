@@ -43,7 +43,8 @@ public:
     #endif
     update_brightness();
   }
-
+	
+  static void off();
   static void update(const bool sflag);
   static void update_brightness() { update(false); }
   static void update_enabled()    { update(true);  }

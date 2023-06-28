@@ -26,21 +26,13 @@
 
 #include "../../inc/MarlinConfig.h"
 #include "../shared/Delay.h"
+#include "HAL.h"
+#include "bsp_rmu.h"
 
 #include "usb_serial.h"
 
 #ifdef USBCON
   DefaultSerial1 MSerialUSB(false, SerialUSB);
-#endif
-
-#if ENABLED(SRAM_EEPROM_EMULATION)
-  #if STM32F7xx
-    #include <stm32f7xx_ll_pwr.h>
-  #elif STM32F4xx
-    #include <stm32f4xx_ll_pwr.h>
-  #else
-    #error "SRAM_EEPROM_EMULATION is currently only supported for STM32F4xx and STM32F7xx"
-  #endif
 #endif
 
 #if HAS_SD_HOST_DRIVE
@@ -67,9 +59,11 @@ void MarlinHAL::init() {
   // Ensure F_CPU is a constant expression.
   // If the compiler breaks here, it means that delay code that should compute at compile time will not work.
   // So better safe than sorry here.
-  constexpr int cpuFreq = F_CPU;
-  UNUSED(cpuFreq);
-
+  //constexpr int cpuFreq = F_CPU;
+  //UNUSED(cpuFreq);
+	
+  NVIC_SetPriorityGrouping(0x3);
+	
   #if ENABLED(SDSUPPORT) && DISABLED(SDIO_SUPPORT) && (defined(SDSS) && SDSS != -1)
     OUT_WRITE(SDSS, HIGH); // Try to set SDSS inactive before any other SPI users start up
   #endif
@@ -78,15 +72,14 @@ void MarlinHAL::init() {
     OUT_WRITE(LED_PIN, LOW);
   #endif
 
-  #if ENABLED(SRAM_EEPROM_EMULATION)
-    __HAL_RCC_PWR_CLK_ENABLE();
-    HAL_PWR_EnableBkUpAccess();           // Enable access to backup SRAM
-    __HAL_RCC_BKPSRAM_CLK_ENABLE();
-    LL_PWR_EnableBkUpRegulator();         // Enable backup regulator
-    while (!LL_PWR_IsActiveFlag_BRR());   // Wait until backup regulator is initialized
+  #if PIN_EXISTS(AUTO_LEVEL_TX)
+    OUT_WRITE(AUTO_LEVEL_TX_PIN, HIGH);
+    delay(10);
+    OUT_WRITE(AUTO_LEVEL_TX_PIN, LOW);
+    delay(300);
+    OUT_WRITE(AUTO_LEVEL_TX_PIN, HIGH);
   #endif
-
-  SetTimerInterruptPriorities();
+  //SetTimerInterruptPriorities();
 
   #if ENABLED(EMERGENCY_PARSER) && (USBD_USE_CDC || USBD_USE_CDC_MSC)
     USB_Hook_init();
@@ -115,30 +108,16 @@ void MarlinHAL::idletask() {
 void MarlinHAL::reboot() { NVIC_SystemReset(); }
 
 uint8_t MarlinHAL::get_reset_source() {
-  return
-    #ifdef RCC_FLAG_IWDGRST // Some sources may not exist...
-      RESET != __HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)  ? RST_WATCHDOG :
-    #endif
-    #ifdef RCC_FLAG_IWDG1RST
-      RESET != __HAL_RCC_GET_FLAG(RCC_FLAG_IWDG1RST) ? RST_WATCHDOG :
-    #endif
-    #ifdef RCC_FLAG_IWDG2RST
-      RESET != __HAL_RCC_GET_FLAG(RCC_FLAG_IWDG2RST) ? RST_WATCHDOG :
-    #endif
-    #ifdef RCC_FLAG_SFTRST
-      RESET != __HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)   ? RST_SOFTWARE :
-    #endif
-    #ifdef RCC_FLAG_PINRST
-      RESET != __HAL_RCC_GET_FLAG(RCC_FLAG_PINRST)   ? RST_EXTERNAL :
-    #endif
-    #ifdef RCC_FLAG_PORRST
-      RESET != __HAL_RCC_GET_FLAG(RCC_FLAG_PORRST)   ? RST_POWER_ON :
-    #endif
-    0
-  ;
+    uint8_t res;
+
+    res = rmu_get_reset_cause();
+
+    return res;
 }
 
-void MarlinHAL::clear_reset_source() { __HAL_RCC_CLEAR_RESET_FLAGS(); }
+void MarlinHAL::clear_reset_source() { 
+    rmu_clear_reset_cause();
+}
 
 // ------------------------
 // Watchdog Timer
@@ -148,17 +127,22 @@ void MarlinHAL::clear_reset_source() { __HAL_RCC_CLEAR_RESET_FLAGS(); }
 
   #define WDT_TIMEOUT_US TERN(WATCHDOG_DURATION_8S, 8000000, 4000000) // 4 or 8 second timeout
 
-  #include <IWatchdog.h>
+	#include "../cores/iwdg.h"
+
+  bool wdt_init_flag = false;
 
   void MarlinHAL::watchdog_init() {
-    IF_DISABLED(DISABLE_WATCHDOG_INIT, IWatchdog.begin(WDT_TIMEOUT_US));
+    iwdg_init();
+    wdt_init_flag = true;
   }
 
   void MarlinHAL::watchdog_refresh() {
-    IWatchdog.reload();
-    #if DISABLED(PINS_DEBUGGING) && PIN_EXISTS(LED)
-      TOGGLE(LED_PIN);  // heartbeat indicator
-    #endif
+    if(!wdt_init_flag) return;
+    iwdg_feed();
+  }
+	
+	void watchdogSetup() {
+  // do whatever. don't remove this function.
   }
 
 #endif
@@ -168,15 +152,6 @@ extern "C" {
 }
 
 // Reset the system to initiate a firmware flash
-WEAK void flashFirmware(const int16_t) { hal.reboot(); }
-
-// Maple Compatibility
-volatile uint32_t systick_uptime_millis = 0;
-systickCallback_t systick_user_callback;
-void systick_attach_callback(systickCallback_t cb) { systick_user_callback = cb; }
-void HAL_SYSTICK_Callback() {
-  systick_uptime_millis++;
-  if (systick_user_callback) systick_user_callback();
-}
+void flashFirmware(const int16_t) { NVIC_SystemReset(); }
 
 #endif // HAL_STM32

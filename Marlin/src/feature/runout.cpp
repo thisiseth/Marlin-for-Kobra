@@ -32,6 +32,8 @@
 
 FilamentMonitor runout;
 
+uint8_t FilamentSensorBase::state_original = FIL_RUNOUT_STATE;
+
 bool FilamentMonitorBase::enabled = true,
      FilamentMonitorBase::filament_ran_out;  // = false
 
@@ -52,7 +54,7 @@ bool FilamentMonitorBase::enabled = true,
     uint8_t FilamentSensorEncoder::motion_detected;
   #endif
 #else
-  int8_t RunoutResponseDebounced::runout_count[NUM_RUNOUT_SENSORS]; // = 0
+  int16_t RunoutResponseDebounced::runout_count[NUM_RUNOUT_SENSORS]; // = 0
 #endif
 
 //
@@ -125,7 +127,8 @@ void event_filament_runout(const uint8_t extruder) {
     SERIAL_CHAR(tool);
     SERIAL_EOL();
   #endif // HOST_ACTION_COMMANDS
-
+		
+#if 0
   if (run_runout_script) {
     #if MULTI_FILAMENT_SENSOR
       char script[strlen(FILAMENT_RUNOUT_SCRIPT) + 1];
@@ -142,6 +145,7 @@ void event_filament_runout(const uint8_t extruder) {
       queue.inject(F(FILAMENT_RUNOUT_SCRIPT));
     #endif
   }
+#endif
 }
 
 #endif // HAS_FILAMENT_SENSOR

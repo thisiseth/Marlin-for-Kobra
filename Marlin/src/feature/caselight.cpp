@@ -21,6 +21,7 @@
  */
 
 #include "../inc/MarlinConfig.h"
+#include "hc32f46x_gpio.h"
 
 #if ENABLED(CASE_LIGHT_ENABLE)
 
@@ -89,8 +90,10 @@ void CaseLight::update(const bool sflag) {
       else
     #endif
       {
-        const bool s = on ? TERN(INVERT_CASE_LIGHT, LOW, HIGH) : TERN(INVERT_CASE_LIGHT, HIGH, LOW);
-        WRITE(CASE_LIGHT_PIN, s ? HIGH : LOW);
+          if(on > 0)
+            PORT_SetBits(PortA, Pin13);
+          else
+            PORT_ResetBits(PortA, Pin13);
       }
 
   #endif // !CASE_LIGHT_IS_COLOR_LED

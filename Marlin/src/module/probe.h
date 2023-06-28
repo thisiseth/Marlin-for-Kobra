@@ -83,8 +83,12 @@ public:
   #endif
 
   #if HAS_BED_PROBE
+    static int8_t status;
 
     static xyz_pos_t offset;
+		
+		static xyz_pos_t default_probe_xyz_offset;
+    static xy_pos_t default_probe_xy_offset;
 
     #if EITHER(PREHEAT_BEFORE_PROBING, PREHEAT_BEFORE_LEVELING)
       static void preheat_for_probing(const celsius_t hotend_temp, const celsius_t bed_temp, const bool early=false);
@@ -243,14 +247,6 @@ public:
 
     // constexpr helpers used in build-time static_asserts, relying on default probe offsets.
     class build_time {
-      static constexpr xyz_pos_t default_probe_xyz_offset = xyz_pos_t(
-        #if HAS_BED_PROBE
-          NOZZLE_TO_PROBE_OFFSET
-        #else
-          { 0 }
-        #endif
-      );
-      static constexpr xy_pos_t default_probe_xy_offset = xy_pos_t({ default_probe_xyz_offset.x,  default_probe_xyz_offset.y });
 
     public:
       static constexpr bool can_reach(float x, float y) {

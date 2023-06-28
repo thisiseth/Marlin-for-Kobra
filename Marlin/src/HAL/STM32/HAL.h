@@ -29,10 +29,11 @@
 #include "../shared/math_32bit.h"
 #include "../shared/HAL_SPI.h"
 #include "fastio.h"
-#include "Servo.h"
-#include "MarlinSerial.h"
+//#include "Servo.h"
+//#include "MarlinSerial.h"
 
 #include "../../inc/MarlinConfigPre.h"
+#include "../pins/pins.h"
 
 #include <stdint.h>
 
@@ -53,7 +54,7 @@
   extern DefaultSerial1 MSerialUSB;
 #endif
 
-#define _MSERIAL(X) MSerial##X
+#define _MSERIAL(X) Serial##X
 #define MSERIAL(X) _MSERIAL(X)
 
 #if WITHIN(SERIAL_PORT, 1, 6)
@@ -127,8 +128,8 @@
 //
 // Interrupts
 //
-#define CRITICAL_SECTION_START()  const bool irqon = !__get_PRIMASK(); __disable_irq()
-#define CRITICAL_SECTION_END()    if (irqon) __enable_irq()
+#define CRITICAL_SECTION_START()  NOOP//uint32_t primask = __get_PRIMASK(); __disable_irq()
+#define CRITICAL_SECTION_END()    NOOP//if (!primask) __enable_irq()
 #define cli() __disable_irq()
 #define sei() __enable_irq()
 
@@ -144,10 +145,10 @@ typedef double isr_float_t;   // FPU ops are used for single-precision, so use d
   typedef int16_t pin_t;
 #endif
 
-class libServo;
-typedef libServo hal_servo_t;
-#define PAUSE_SERVO_OUTPUT() libServo::pause_all_servos()
-#define RESUME_SERVO_OUTPUT() libServo::resume_all_servos()
+//class libServo;
+//typedef libServo hal_servo_t;
+//#define PAUSE_SERVO_OUTPUT() libServo::pause_all_servos()
+//#define RESUME_SERVO_OUTPUT() libServo::resume_all_servos()
 
 // ------------------------
 // ADC
@@ -193,7 +194,7 @@ extern volatile uint32_t systick_uptime_millis;
 // Memory related
 #define __bss_end __bss_end__
 
-extern "C" char* _sbrk(int incr);
+//extern "C" char* _sbrk(int incr);
 
 #pragma GCC diagnostic push
 #if GCC_VERSION <= 50000
@@ -201,11 +202,15 @@ extern "C" char* _sbrk(int incr);
 #endif
 
 static inline int freeMemory() {
-  volatile char top;
-  return &top - reinterpret_cast<char*>(_sbrk(0));
+  //volatile char top;
+  //return &top - reinterpret_cast<char*>(_sbrk(0));
+	return 0;
 }
 
 #pragma GCC diagnostic pop
+
+extern uint16_t g_adc_value[3];
+extern uint8_t g_adc_idx;
 
 // ------------------------
 // MarlinHAL Class
@@ -247,23 +252,37 @@ public:
   //
 
   static uint16_t adc_result;
-
+	
   // Called by Temperature::init once at startup
   static void adc_init() {
-    analogReadResolution(HAL_ADC_RESOLUTION);
+    //analogReadResolution(HAL_ADC_RESOLUTION);
   }
 
   // Called by Temperature::init for each sensor at startup
-  static void adc_enable(const pin_t pin) { pinMode(pin, INPUT); }
-
+  static void adc_enable(const pin_t pin) { 
+		//pinMode(pin, INPUT); 
+	}
+	
   // Begin ADC sampling on the given pin. Called from Temperature::isr!
-  static void adc_start(const pin_t pin) { adc_result = analogRead(pin); }
+  static void adc_start(const pin_t pin) { 
+		if       (pin == TEMP_BED_PIN) {
+        g_adc_idx = 0;
+    } else if(pin == TEMP_0_PIN) {
+        g_adc_idx = 1;
+    } else if(pin == POWER_MONITOR_VOLTAGE_PIN) {
+        g_adc_idx = 2;
+    } else {
+          g_adc_idx = 0x0;
+    }
+	}
 
   // Is the ADC ready for reading?
   static bool adc_ready() { return true; }
 
   // The current value of the ADC register
-  static uint16_t adc_value() { return adc_result; }
+  static uint16_t adc_value() { 
+		return g_adc_value[g_adc_idx];
+	}
 
   /**
    * Set the PWM duty cycle for the pin to the given value.

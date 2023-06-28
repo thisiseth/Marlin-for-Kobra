@@ -173,7 +173,7 @@ int8_t GcodeSuite::get_target_e_stepper_from_command(const int8_t dval/*=-1*/) {
  *  - Set the feedrate, if included
  */
 void GcodeSuite::get_destination_from_command() {
-  xyze_bool_t seen{false};
+  xyze_bool_t seen{{{false}}};
 
   #if ENABLED(CANCEL_OBJECTS)
     const bool &skip_move = cancelable.skipping;
@@ -1120,7 +1120,7 @@ void GcodeSuite::process_parsed_command(const bool no_ok/*=false*/) {
 
   if (!no_ok) queue.ok_to_send();
 
-  SERIAL_OUT(msgDone); // Call the msgDone serial hook to signal command processing done
+  //SERIAL_OUT(msgDone); // Call the msgDone serial hook to signal command processing done
 }
 
 #if ENABLED(M100_FREE_MEMORY_DUMPER)
